@@ -1,0 +1,119 @@
+export { };
+
+declare global {
+  /***
+   * Golt Runtime - Fetch API Definitions
+   ***/
+  interface FetchHeaders {
+    get(name: string): string | null;
+  }
+
+  interface FetchResponse {
+    ok: boolean;
+    status: number;
+    statusText: string;
+    headers: FetchHeaders;
+    text(): Promise<string>;
+    json<T = any>(): Promise<T>;
+  }
+
+  interface FetchOptions {
+    method?: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    headers?: Record<string, string>;
+    body?: string;
+    timeout?: number;
+  }
+
+  function fetch(url: string, options?: FetchOptions): Promise<FetchResponse>;
+
+  /***
+   * Golt Runtime - Core Namespace
+   ***/
+  namespace Golt {
+    export const env: Record<string, string | undefined>;
+
+    export type SchemaType = "string" | "number" | "boolean";
+
+    export type InferType<T> = T extends "string"
+      ? string
+      : T extends "number"
+      ? number
+      : T extends "boolean"
+      ? boolean
+      : never;
+
+    export type InferSchema<T extends Record<string, SchemaType>> = {
+      [K in keyof T]: InferType<T[K]>;
+    };
+
+    export type Next = () => void;
+    export type Middleware = (c: Context, next: Next) => void;
+
+    export interface LoggerConfig {
+      format?: "dev" | "tiny" | "json";
+    }
+
+    export type DbDialect = "sqlite" | "postgres" | "mysql" | "sqlserver";
+
+    export interface DatabaseClient {
+      query<T = any>(sql: string, ...args: any[]): Promise<T[]>;
+      close(): void;
+    }
+
+    export interface Database {
+      connect(dialect: DbDialect, connectionString: string): DatabaseClient;
+      query<T = any>(sql: string, ...args: any[]): Promise<T[]>;
+    }
+
+    export interface Context {
+      Method(): string;
+      Url(): string;
+      Param(name: string): string;
+      GetHeader(key: string): string;
+      SetHeader(key: string, value: string): void;
+      Set(key: string, value: any): void;
+      Get<T = any>(key: string): T | undefined;
+      Query(key: string): string;
+      Status(code: number): Context;
+      Send(body: string): void;
+      Json(data: any): void;
+      ValidateBody<T extends Record<string, SchemaType>>(
+        schema: T,
+      ): InferSchema<T> | null;
+    }
+
+    export interface Fs {
+      readFile(path: string): string;
+      writeFile(path: string, content: string): void;
+    }
+
+    export interface Crypto {
+      hash(password: string, cost?: number): Promise<string>;
+      compare(password: string, hash: string): Promise<boolean>;
+    }
+
+    export interface Jwt {
+      sign(payload: Record<string, any>, secret: string, expHours?: number): string;
+      verify<T = Record<string, any>>(token: string, secret: string): T | null;
+    }
+
+    export interface AppInstance {
+      use(middleware: Middleware): AppInstance;
+      get(path: string, handler: (c: Context) => void): AppInstance;
+      post(path: string, handler: (c: Context) => void): AppInstance;
+      put(path: string, handler: (c: Context) => void): AppInstance;
+      delete(path: string, handler: (c: Context) => void): AppInstance;
+      static(prefix: string, dirPath: string, spa?: boolean): AppInstance;
+      notFound(handler: (c: Context) => void): AppInstance;
+      serve(port: number): void;
+    }
+
+    export function App(): AppInstance;
+    export const db: Database;
+    export const fs: Fs;
+    export const crypto: Crypto;
+    export const jwt: Jwt;
+
+    export function logger(config?: LoggerConfig): Middleware;
+  }
+}
