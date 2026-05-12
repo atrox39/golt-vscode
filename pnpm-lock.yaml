@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      golt-ts-plugin:
-        specifier: file:./golt-ts-plugin
-        version: file:golt-ts-plugin
     devDependencies:
       '@types/mocha':
         specifier: ^10.0.10
@@ -809,9 +805,6 @@ packages:
   globalthis@1.0.4:
     resolution: {integrity: sha512-DpLKbNU4WylpxJykQujfCcwYWiV/Jhm50Goo0wrVILAv5jOr9d+H+UR3PhSCD2rCCEIg0uc+G+muBTwD54JhDQ==}
     engines: {node: '>= 0.4'}
-
-  golt-ts-plugin@file:golt-ts-plugin:
-    resolution: {directory: golt-ts-plugin, type: directory}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -2461,8 +2454,6 @@ snapshots:
     dependencies:
       define-properties: 1.2.1
       gopd: 1.2.0
-
-  golt-ts-plugin@file:golt-ts-plugin: {}
 
   gopd@1.2.0: {}
 

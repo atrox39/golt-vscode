@@ -3,7 +3,7 @@
   "displayName": "Golt",
   "icon": "images/icon.jpg",
   "description": "Official Golt Runtime support for VS Code",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/atrox39/golt-vscode.git"
@@ -13,7 +13,9 @@
     "vscode": "^1.90.0"
   },
   "categories": [
-    "Other"
+    "Language Packs",
+    "Programming Languages",
+    "Formatters"
   ],
   "activationEvents": [
     "workspaceContains:golt.json"
@@ -23,6 +25,7 @@
     "typescriptServerPlugins": [
       {
         "name": "golt-ts-plugin",
+        "location": "./golt-ts-plugin",
         "enableForWorkspaceTypeScriptVersions": true
       }
     ]
@@ -52,8 +55,5 @@
     "npm-run-all": "^4.1.5",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.56.1"
-  },
-  "dependencies": {
-    "golt-ts-plugin": "file:./golt-ts-plugin"
   }
 }
