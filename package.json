@@ -1,12 +1,14 @@
 {
   "name": "golt-vscode",
-  "displayName": "golt-vscode",
+  "displayName": "Golt",
+  "icon": "images/icon.jpg",
   "description": "Official Golt Runtime support for VS Code",
   "version": "1.0.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/atrox39/golt-vscode.git"
   },
+  "publisher": "Aztekode",
   "engines": {
     "vscode": "^1.90.0"
   },
