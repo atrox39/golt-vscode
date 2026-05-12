@@ -14,3 +14,4 @@ vsc-extension-quickstart.md
 **/.vscode-test.*
 !node_modules/golt-ts-plugin/**
 !golt-ts-plugin/**
+*.vsix
