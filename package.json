@@ -74,7 +74,9 @@
   "files": [
     "dist",
     "resources",
+    "images",
     "package.json",
-    "README.md"
+    "README.md",
+    "LICENSE.txt"
   ]
 }
