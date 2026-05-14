@@ -55,14 +55,21 @@ declare global {
 
     export type DbDialect = "sqlite" | "postgres" | "mysql" | "sqlserver";
 
+    export interface ExecResult {
+      rowsAffected: number | null;
+      lastInsertId: number | null;
+    }
+
     export interface DatabaseClient {
       query<T = any>(sql: string, ...args: any[]): Promise<T[]>;
+      exec(sql: string, ...args: any[]): Promise<ExecResult>;
       close(): void;
     }
 
     export interface Database {
       connect(dialect: DbDialect, connectionString: string): DatabaseClient;
       query<T = any>(sql: string, ...args: any[]): Promise<T[]>;
+      exec(sql: string, ...args: any[]): Promise<ExecResult>;
     }
 
     export interface Context {
