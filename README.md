@@ -4,7 +4,7 @@
 
 Official Visual Studio Code extension that wires up a TypeScript language-service plugin to inject Golt Runtime typings into your workspace when a `golt.json` file is present.
 
-Repository: https://github.com/atrox39/golt-vscode
+Repository: https://github.com/Aztekode/golt-vscode
 
 ## What this extension does
 
