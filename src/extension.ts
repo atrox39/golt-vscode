@@ -1,25 +1,23 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
-import {
-  applyEdits,
-  modify,
-  parse,
-  ParseError,
-} from "jsonc-parser";
 
 const GOLT_TYPES_RELATIVE_DIR = path.join(".golt", "types", "golt");
 const GOLT_TYPES_FILE = "index.d.ts";
 
 export async function activate(context: vscode.ExtensionContext) {
+  console.log("[Golt] Extension activated");
+
   context.subscriptions.push(
     vscode.commands.registerCommand("golt.enableWorkspace", async () => {
+      console.log("[Golt] Enable Workspace command executed");
       await enableGoltWorkspace(context, true);
     }),
   );
 
   context.subscriptions.push(
     vscode.commands.registerCommand("golt.disableWorkspace", async () => {
+      console.log("[Golt] Disable Workspace command executed");
       await disableGoltWorkspace();
     }),
   );
@@ -68,6 +66,8 @@ async function enableGoltWorkspace(
     return;
   }
 
+  let enabled = false;
+
   for (const folder of folders) {
     const goltConfigPath = path.join(folder.uri.fsPath, "golt.json");
 
@@ -91,6 +91,12 @@ async function enableGoltWorkspace(
     }
 
     await setupWorkspaceFolder(context, folder);
+    enabled = true;
+  }
+
+  if (!enabled) {
+    vscode.window.showWarningMessage("No golt.json file was found in the current workspace.");
+    return;
   }
 
   await restartTypeScriptServer();
@@ -158,63 +164,41 @@ function createDefaultTsConfig(tsconfigPath: string) {
     exclude: ["node_modules"],
   };
 
-  fs.writeFileSync(tsconfigPath, JSON.stringify(config, null, 2), "utf8");
+  writeJsonFile(tsconfigPath, config);
 }
 
 function patchConfigFile(configPath: string) {
-  const originalText = fs.readFileSync(configPath, "utf8");
+  const config = readJsonLikeFile(configPath);
 
-  const errors: ParseError[] = [];
-  const config = parse(originalText, errors, {
-    allowTrailingComma: true,
-    disallowComments: false,
-  });
-
-  if (errors.length > 0 || !config || typeof config !== "object") {
+  if (!config) {
     vscode.window.showWarningMessage(
       `Could not update ${path.basename(configPath)} because it contains invalid JSON.`,
     );
     return;
   }
 
-  let updatedText = originalText;
+  if (!config.compilerOptions || typeof config.compilerOptions !== "object") {
+    config.compilerOptions = {};
+  }
 
-  const currentCompilerOptions = config.compilerOptions ?? {};
-  const currentTypeRoots: string[] = Array.isArray(currentCompilerOptions.typeRoots)
-    ? currentCompilerOptions.typeRoots
+  const compilerOptions = config.compilerOptions as Record<string, unknown>;
+
+  const currentTypeRoots = Array.isArray(compilerOptions.typeRoots)
+    ? compilerOptions.typeRoots.filter((item): item is string => typeof item === "string")
     : [];
 
-  const nextTypeRoots = addUniqueValues(currentTypeRoots, [
+  compilerOptions.typeRoots = addUniqueValues(currentTypeRoots, [
     "./node_modules/@types",
     "./.golt/types",
   ]);
 
-  updatedText = applyJsoncEdit(updatedText, ["compilerOptions", "typeRoots"], nextTypeRoots);
-
-  const currentInclude: string[] = Array.isArray(config.include)
-    ? config.include
+  const currentInclude = Array.isArray(config.include)
+    ? config.include.filter((item): item is string => typeof item === "string")
     : ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx"];
 
-  const nextInclude = addUniqueValues(currentInclude, [".golt/types/**/*.d.ts"]);
+  config.include = addUniqueValues(currentInclude, [".golt/types/**/*.d.ts"]);
 
-  updatedText = applyJsoncEdit(updatedText, ["include"], nextInclude);
-
-  fs.writeFileSync(configPath, updatedText, "utf8");
-}
-
-function applyJsoncEdit(
-  text: string,
-  pathSegments: (string | number)[],
-  value: unknown,
-): string {
-  const edits = modify(text, pathSegments, value, {
-    formattingOptions: {
-      insertSpaces: true,
-      tabSize: 2,
-    },
-  });
-
-  return applyEdits(text, edits);
+  writeJsonFile(configPath, config);
 }
 
 function addUniqueValues(current: string[], values: string[]) {
@@ -254,47 +238,120 @@ async function disableGoltWorkspace() {
 }
 
 function removeGoltFromConfig(configPath: string) {
-  const originalText = fs.readFileSync(configPath, "utf8");
+  const config = readJsonLikeFile(configPath);
 
-  const errors: ParseError[] = [];
-  const config = parse(originalText, errors, {
-    allowTrailingComma: true,
-    disallowComments: false,
-  });
-
-  if (errors.length > 0 || !config || typeof config !== "object") {
+  if (!config) {
     return;
   }
 
-  let updatedText = originalText;
-
-  if (Array.isArray(config.compilerOptions?.typeRoots)) {
-    const nextTypeRoots = config.compilerOptions.typeRoots.filter(
-      (item: string) => item !== "./.golt/types",
-    );
-
-    updatedText = applyJsoncEdit(
-      updatedText,
-      ["compilerOptions", "typeRoots"],
-      nextTypeRoots,
+  if (
+    config.compilerOptions &&
+    typeof config.compilerOptions === "object" &&
+    Array.isArray(config.compilerOptions.typeRoots)
+  ) {
+    config.compilerOptions.typeRoots = config.compilerOptions.typeRoots.filter(
+      (item: unknown) => item !== "./.golt/types",
     );
   }
 
   if (Array.isArray(config.include)) {
-    const nextInclude = config.include.filter(
-      (item: string) => item !== ".golt/types/**/*.d.ts",
+    config.include = config.include.filter(
+      (item: unknown) => item !== ".golt/types/**/*.d.ts",
     );
-
-    updatedText = applyJsoncEdit(updatedText, ["include"], nextInclude);
   }
 
-  fs.writeFileSync(configPath, updatedText, "utf8");
+  writeJsonFile(configPath, config);
+}
+
+function readJsonLikeFile(filePath: string): Record<string, any> | null {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8");
+    const clean = stripJsonCommentsAndTrailingCommas(raw);
+    const parsed = JSON.parse(clean);
+
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return null;
+    }
+
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeJsonFile(filePath: string, value: unknown) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function stripJsonCommentsAndTrailingCommas(input: string): string {
+  let output = "";
+  let inString = false;
+  let stringQuote = "";
+  let escaped = false;
+
+  for (let i = 0; i < input.length; i++) {
+    const current = input[i];
+    const next = input[i + 1];
+
+    if (inString) {
+      output += current;
+
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (current === "\\") {
+        escaped = true;
+        continue;
+      }
+
+      if (current === stringQuote) {
+        inString = false;
+        stringQuote = "";
+      }
+
+      continue;
+    }
+
+    if (current === '"' || current === "'") {
+      inString = true;
+      stringQuote = current;
+      output += current;
+      continue;
+    }
+
+    if (current === "/" && next === "/") {
+      while (i < input.length && input[i] !== "\n") {
+        i++;
+      }
+
+      output += "\n";
+      continue;
+    }
+
+    if (current === "/" && next === "*") {
+      i += 2;
+
+      while (i < input.length && !(input[i] === "*" && input[i + 1] === "/")) {
+        i++;
+      }
+
+      i++;
+      continue;
+    }
+
+    output += current;
+  }
+
+  return output.replace(/,\s*([}\]])/g, "$1");
 }
 
 async function restartTypeScriptServer() {
   try {
     await vscode.commands.executeCommand("typescript.restartTsServer");
   } catch {
+    // TypeScript server may not be active yet.
   }
 }
 
